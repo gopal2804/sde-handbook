@@ -1,0 +1,114 @@
+site_name: SDE Handbook
+site_description: A complete, beginner-to-advanced study plan for SDE 2, Backend, DevOps and AI engineering roles.
+site_author: Gopal Gupta
+site_url: https://gopal2804.github.io/sde-handbook/
+repo_url: https://github.com/gopal2804/sde-handbook
+repo_name: gopal2804/sde-handbook
+edit_uri: ""
+
+theme:
+  name: material
+  language: en
+  icon:
+    logo: material/book-open-page-variant
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep orange
+      toggle: { icon: material/weather-night, name: Switch to dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep orange
+      toggle: { icon: material/weather-sunny, name: Switch to light mode }
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+extra_css:
+  - assets/extra.css
+
+hooks:
+  - hooks.py
+
+# Personal notes stay on your computer: excluded from the build and never committed (see .gitignore)
+exclude_docs: |
+  25_My_Dell_Experience.md
+  26_My_AI_Projects.md
+  27_Behavioral_HR.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - mdx_truly_sane_lists:
+      nested_indent: 2
+  - nl2br          # a single line break in the Markdown = a line break on the page (matches how the notes are written)
+
+nav:
+  - Start here: index.md
+  - Foundations:
+      - Data Structures & Algorithms: 01_DSA.md
+      - C and C++: 02_C_and_Cpp.md
+      - Python: 03_Python.md
+      - Scala, JVM & Spring Boot: 04_Scala_JVM_SpringBoot.md
+      - OOP, Design Patterns & LLD: 05_OOP_Design_Patterns_LLD.md
+  - Systems:
+      - Operating Systems, Linux & Bash: 06_OS_Linux_Bash.md
+      - Multithreading & Concurrency: 07_Multithreading_Concurrency.md
+      - Computer Networks: 08_Computer_Networks.md
+  - Data & Storage:
+      - SQL, MySQL, MongoDB & Redis: 09_Databases_SQL_MySQL_MongoDB.md
+      - Elasticsearch, DuckDB, Arrow & Parquet: 10_Elasticsearch_DuckDB_Arrow_Parquet.md
+      - Storage Systems, S3 & ECS: 11_Storage_Systems.md
+      - Distributed Systems: 12_Distributed_Systems.md
+      - Kafka & RabbitMQ: 13_Kafka_RabbitMQ.md
+  - Design & Backend:
+      - System Design (HLD): 14_System_Design_HLD.md
+      - Backend, REST, Microservices & FastAPI: 15_Backend_REST_Microservices_FastAPI.md
+  - DevOps:
+      - Docker & Kubernetes: 16_Docker_Kubernetes.md
+      - CI/CD, Git, Jenkins & Maven: 17_CICD_Git_Jenkins_Maven.md
+      - Observability: 18_Observability.md
+      - Security & DevSecOps: 19_Security_DevSecOps.md
+  - AI Engineering:
+      - LLMs, Prompting & OpenAI API: 20_LLMs_Prompting_OpenAI.md
+      - RAG, Agents, Evals & Guardrails: 21_RAG_Agents_Evals_Guardrails.md
+      - AI Coding Tools: 22_AI_Coding_Tools.md
+      - Chrome Extensions: 23_Chrome_Extensions.md
+  - Process:
+      - Agile, Scrum & SDLC: 24_Agile_Scrum_SDLC.md
+  - Practice:
+      - Practice Questions & Mocks: 28_Practice_Questions.md

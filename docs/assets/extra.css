@@ -1,0 +1,16 @@
+/* Wider reading area on large screens */
+.md-grid { max-width: 1440px; }
+
+/* Code blocks: ASCII diagrams must never wrap; scroll horizontally instead */
+.md-typeset pre > code { white-space: pre; font-size: 0.78rem; line-height: 1.45; }
+
+/* Tables: readable on phones (scroll instead of squashing) */
+.md-typeset__table { overflow-x: auto; }
+.md-typeset table:not([class]) { font-size: 0.74rem; }
+.md-typeset table:not([class]) th { white-space: nowrap; }
+
+/* Slightly larger body text for long reading sessions */
+.md-typeset { font-size: 0.84rem; line-height: 1.7; }
+
+/* Headings with a little more breathing room */
+.md-typeset h2 { margin-top: 2.2em; border-bottom: 1px solid var(--md-default-fg-color--lightest); padding-bottom: 0.25em; }

@@ -1,0 +1,10 @@
+# Personal notes: kept locally, never pushed to the public repository
+docs/25_My_Dell_Experience.md
+docs/26_My_AI_Projects.md
+docs/27_Behavioral_HR.md
+
+# Build output and local environments
+site/
+.venv/
+__pycache__/
+.DS_Store
