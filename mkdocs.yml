@@ -15,18 +15,20 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: teal
-      accent: deep orange
+      primary: custom
+      accent: custom
       toggle: { icon: material/weather-night, name: Switch to dark mode }
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: teal
-      accent: deep orange
+      primary: custom
+      accent: custom
       toggle: { icon: material/weather-sunny, name: Switch to light mode }
   font:
-    text: Inter
+    text: Plus Jakarta Sans
     code: JetBrains Mono
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.top
@@ -42,6 +44,9 @@ theme:
 
 extra_css:
   - assets/extra.css
+
+extra_javascript:
+  - assets/progress.js
 
 hooks:
   - hooks.py
@@ -78,7 +83,8 @@ markdown_extensions:
   - nl2br          # a single line break in the Markdown = a line break on the page (matches how the notes are written)
 
 nav:
-  - Start here: index.md
+  - Home: index.md
+  - 20-Day Plan: plan.md
   - Foundations:
       - Data Structures & Algorithms: 01_DSA.md
       - C and C++: 02_C_and_Cpp.md
@@ -108,7 +114,6 @@ nav:
       - RAG, Agents, Evals & Guardrails: 21_RAG_Agents_Evals_Guardrails.md
       - AI Coding Tools: 22_AI_Coding_Tools.md
       - Chrome Extensions: 23_Chrome_Extensions.md
-  - Process:
+  - Process & Practice:
       - Agile, Scrum & SDLC: 24_Agile_Scrum_SDLC.md
-  - Practice:
       - Practice Questions & Mocks: 28_Practice_Questions.md
