@@ -3,11 +3,27 @@ rules_version = '2';
 // Each signed-in person can read and write only their own progress; nobody can list or read anyone else's.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Private notes: only the site owner. Replace OWNER_UID with your account ID
+    // Private notes and files: only the site owner. Replace OWNER_UID with your account ID
     // (shown on the Private notes page when you're signed in, or Firebase console → Authentication → Users).
+    function isOwner() { return request.auth != null && request.auth.uid == "OWNER_UID"; }
+
+    match /private_files/{file} {
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly(['name', 'type', 'size', 'chunks', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.chunks is int && request.resource.data.chunks <= 40;
+      match /chunks/{n} {
+        allow read, delete: if isOwner();
+        allow create, update: if isOwner()
+          && request.resource.data.keys().hasOnly(['data'])
+          && request.resource.data.data is bytes
+          && request.resource.data.data.size() <= 1000000;
+      }
+    }
     match /private_notes/{note} {
-      allow read, delete: if request.auth != null && request.auth.uid == "OWNER_UID";
-      allow create, update: if request.auth != null && request.auth.uid == "OWNER_UID"
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner()
         && request.resource.data.keys().hasOnly(['title', 'md', 'updatedAt'])
         && request.resource.data.md is string
         && request.resource.data.md.size() < 1000000;

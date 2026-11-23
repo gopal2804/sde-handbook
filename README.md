@@ -63,13 +63,17 @@ Without signing in, progress is saved only in that browser (`localStorage` key `
 4. **Create the database:** Firestore Database → create in **production mode** (location `asia-south1`). Then paste `firestore.rules` into the **Rules** tab and **Publish**. Replace `OWNER_UID` with your account ID first (the Private notes page shows it once you sign in).
 5. **Register a web app:** Project settings → Your apps → **Web** → register. Copy `apiKey`, `authDomain`, `projectId` and `appId` into `docs/assets/firebase-config.js`.
 
-## Private notes (owner only)
+## Private notes and files (owner only)
 
-Personal notes never go into this repository or the published site. They live in Firestore and appear only for the site owner, after signing in.
+Personal notes and documents never go into this repository or the published site. They live in Firestore and appear only for the site owner, after signing in.
 
 - **Where:** the **Private notes** page (`/private/`, from `docs/private.md`). It isn't in the menu or the site search; the owner opens it from the account menu (**🔒 My private notes**).
-- **Who can see them:** only the account whose ID is set as `OWNER_UID` in `firestore.rules`. The site's code never contains the notes or the owner's identity. For anyone else the database refuses to send them, and the page just says it's private.
-- **What the owner can do:** upload `.md` files (several at once; same file name = replace), read them rendered from Markdown with a contents list, **Edit** in the browser, **Download** one or all as `.md` (backups), and **Delete**. Rendering uses `marked`, and the HTML is cleaned with `DOMPurify` before display.
+- **Who can see them:** only the account whose ID is set as `OWNER_UID` in `firestore.rules`. The site's code never contains the content or the owner's identity. For anyone else the database refuses to send it, and the page just says it's private.
+- **Any file type, up to 25 MB each:**
+  - **Markdown (`.md`):** becomes a note, rendered like the rest of the site with a contents list, and editable in the browser. Rendering uses `marked`, and the HTML is cleaned with `DOMPurify`.
+  - **Other files:** shown in the page where the browser can (PDF, images, video, audio, text and code files), otherwise offered as a download (Word, Excel, zip…).
+  - **How files are stored:** split into pieces under 1 MB (`private_files/{id}/chunks/{n}`), because a Firestore document is limited to 1 MiB. This keeps everything on Firebase's free plan; Firebase file storage would need a paid billing plan.
+- **What the owner can do:** upload several files at once (same file name = replace), switch between items with the tabs (no page reload, Back button works), **Download** one or all (backups), **Delete**.
 - **Links:** links between notes (`25_My_Dell_Experience.md`) and to public pages (`01_DSA.md`) work inside a note. In public pages, `hooks.py` turns links to the personal notes into links to the Private notes page.
 - **Local files:** the original personal files (`docs/25_*`, `26_*`, `27_*`) are still listed in `.gitignore` and `exclude_docs`, so a local copy can never be pushed or published by accident.
 
@@ -104,7 +108,7 @@ docs/                      all pages (Markdown)
   assets/progress.js       progress tracker, dashboard, export/import, merge logic
   assets/cloud-sync.js     Google sign-in + Firestore sync (ES module)
   assets/firebase-config.js  public Firebase web settings
-  assets/private-notes.js  owner-only Private notes page (Firestore + Markdown rendering)
+  assets/private-notes.js  owner-only Private notes page: notes and files in Firestore
   private.md               the Private notes page shell (no content)
 mkdocs.yml                 site settings, navigation, scripts, excluded pages
 hooks.py                   build hook: points links to personal notes at the Private notes page

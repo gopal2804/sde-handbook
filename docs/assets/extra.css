@@ -299,3 +299,8 @@
 .hb-private__toc summary { cursor: pointer; font-weight: 600; }
 .hb-private__editor { width: 100%; min-height: 65vh; box-sizing: border-box; padding: .8rem; font: .8rem/1.5 var(--md-code-font-family, monospace); color: var(--hb-ink); background: var(--hb-surface); border: 1px solid var(--hb-line); border-radius: .6rem; resize: vertical; }
 .hb-private__editor:focus { outline: 2px solid var(--hb-accent); }
+.hb-private__status { padding: .5rem .7rem; margin: -.4rem 0 .8rem; border-radius: .5rem; background: var(--hb-warn-soft); color: var(--hb-warn); font-size: .8em; }
+.hb-private__status[hidden] { display: none; }
+.hb-private__img { max-width: 100%; height: auto; border-radius: .5rem; border: 1px solid var(--hb-line); }
+.hb-private__frame { width: 100%; height: 80vh; border: 1px solid var(--hb-line); border-radius: .5rem; background: #fff; }
+.hb-private__text { max-height: 75vh; overflow: auto; }
