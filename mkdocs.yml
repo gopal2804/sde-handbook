@@ -47,6 +47,8 @@ extra_css:
 
 extra_javascript:
   - assets/progress.js
+  - path: assets/cloud-sync.js   # sign in with Google + sync progress (needs assets/firebase-config.js)
+    type: module
 
 hooks:
   - hooks.py

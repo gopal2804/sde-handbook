@@ -4,6 +4,8 @@
  * - Home dashboard: overall ring, per-category progress, skill cards, continue link.
  * - Export / import progress as JSON (move between devices); reset everything (inline confirm).
  * Progress lives in this browser's localStorage; every read/write is guarded so the site works without it.
+ * Sync: every change also records a per-item timestamp in state.ts, so two devices can be merged item by item
+ * (newest change wins for each tick). cloud-sync.js uses window.HBProgress to sync with the signed-in account.
  */
 (function () {
   "use strict";
@@ -42,7 +44,7 @@
   SKILLS.forEach(function (s) { BY_SLUG[s.slug] = s; });
 
   /* ---------------- storage ---------------- */
-  function emptyState() { return { version: 1, skills: {}, days: {}, last: null }; }
+  function emptyState() { return { version: 1, skills: {}, days: {}, last: null, ts: {} }; }
   function load() {
     try {
       var raw = window.localStorage.getItem(KEY);
@@ -51,10 +53,88 @@
       if (!s || typeof s !== "object") return emptyState();
       s.skills = s.skills && typeof s.skills === "object" ? s.skills : {};
       s.days = s.days && typeof s.days === "object" ? s.days : {};
+      s.ts = s.ts && typeof s.ts === "object" ? s.ts : {};
       return s;
     } catch (e) { return emptyState(); }
   }
-  function save(s) { try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* private mode etc. */ } }
+  function writeLocal(s) { try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* private mode etc. */ } }
+  // save = a change made on this device: store it and tell the sync layer
+  function save(s) {
+    writeLocal(s);
+    try { window.dispatchEvent(new CustomEvent("hb:changed")); } catch (e) { /* old browsers */ }
+  }
+  // remember when an item last changed (key examples: "sec|01_DSA|1-arrays", "done|01_DSA", "day|3", "last")
+  function touch(s, key) { s.ts = s.ts || {}; s.ts[key] = Date.now(); }
+
+  /* ---------------- merging two copies (this device + the signed-in account) ---------------- */
+  function itemKeys(s) {
+    var keys = {};
+    Object.keys(s.ts || {}).forEach(function (k) { keys[k] = 1; });
+    Object.keys(s.skills || {}).forEach(function (slug) {
+      var st = s.skills[slug] || {};
+      Object.keys(st.sections || {}).forEach(function (id) { if (st.sections[id]) keys["sec|" + slug + "|" + id] = 1; });
+      if (st.done) keys["done|" + slug] = 1;
+    });
+    Object.keys(s.days || {}).forEach(function (d) { if (s.days[d]) keys["day|" + d] = 1; });
+    if (s.last) keys.last = 1;
+    return Object.keys(keys);
+  }
+  function getItem(s, key) {
+    var p = key.split("|");
+    if (p[0] === "sec") return !!(s.skills[p[1]] && s.skills[p[1]].sections && s.skills[p[1]].sections[p.slice(2).join("|")]);
+    if (p[0] === "done") return !!(s.skills[p[1]] && s.skills[p[1]].done);
+    if (p[0] === "day") return !!s.days[p[1]];
+    if (key === "last") return s.last || null;
+    return null;
+  }
+  function setItem(s, key, v) {
+    var p = key.split("|");
+    if (p[0] === "sec") { var st = skillState(s, p[1]), id = p.slice(2).join("|"); if (v) st.sections[id] = true; else delete st.sections[id]; }
+    else if (p[0] === "done") { skillState(s, p[1]).done = !!v; }
+    else if (p[0] === "day") { if (v) s.days[p[1]] = true; else delete s.days[p[1]]; }
+    else if (key === "last") { s.last = v || null; }
+  }
+  function stamp(s, key) {
+    // a tick saved before timestamps existed counts as "time 0"; a missing item as "never"
+    if (s.ts && typeof s.ts[key] === "number") return s.ts[key];
+    var v = getItem(s, key);
+    return v ? 0 : -1;
+  }
+  function merge(a, b) {
+    a = a || emptyState(); b = b || emptyState();
+    ["skills", "days", "ts"].forEach(function (f) { a[f] = a[f] || {}; b[f] = b[f] || {}; });
+    var out = emptyState();
+    // facts about each page (section count, section order) don't conflict: keep the fuller one
+    Object.keys(a.skills).concat(Object.keys(b.skills)).forEach(function (slug) {
+      var x = a.skills[slug] || {}, y = b.skills[slug] || {}, st = skillState(out, slug);
+      st.total = Math.max(x.total || 0, y.total || 0);
+      var ox = x.order || [], oy = y.order || [];
+      if (ox.length || oy.length) st.order = (ox.length >= oy.length ? ox : oy).slice();
+    });
+    var keys = {};
+    itemKeys(a).concat(itemKeys(b)).forEach(function (k) { keys[k] = 1; });
+    Object.keys(keys).forEach(function (k) {
+      var ta = stamp(a, k), tb = stamp(b, k);
+      var winner = ta >= tb ? a : b;
+      setItem(out, k, getItem(winner, k));
+      var t = Math.max(ta, tb);
+      if (t > 0) out.ts[k] = t;
+    });
+    return out;
+  }
+  function sameProgress(a, b) {
+    var x = merge(a, emptyState()), y = merge(b, emptyState());
+    return JSON.stringify(normalise(x)) === JSON.stringify(normalise(y));
+  }
+  function normalise(s) {
+    var out = { last: s.last || null, days: Object.keys(s.days).sort(), skills: {}, ts: {} };
+    Object.keys(s.skills).sort().forEach(function (slug) {
+      var st = s.skills[slug];
+      out.skills[slug] = { done: !!st.done, total: st.total || 0, order: (st.order || []).length, sections: Object.keys(st.sections || {}).sort() };
+    });
+    Object.keys(s.ts || {}).sort().forEach(function (k) { out.ts[k] = s.ts[k]; });
+    return out;
+  }
   function skillState(s, slug) {
     if (!s.skills[slug]) s.skills[slug] = { done: false, sections: {}, total: 0 };
     if (!s.skills[slug].sections) s.skills[slug].sections = {};
@@ -114,7 +194,9 @@
     var st = skillState(s, slug);
     var heads = Array.prototype.slice.call(article.querySelectorAll("h2[id]"));
     st.total = heads.length;
+    st.order = heads.map(function (h) { return h.id; });
     s.last = slug;
+    touch(s, "last");
     save(s);
 
     // progress card under the title
@@ -142,10 +224,12 @@
       });
       decorateNav(s2);
     }
+    pageRefreshers.push(refresh);
 
     card.querySelector(".hb-skillbar__done").addEventListener("click", function () {
       var s2 = load(), st2 = skillState(s2, slug);
       st2.done = !st2.done;
+      touch(s2, "done|" + slug);
       save(s2); refresh();
       toast(st2.done ? "Nice! Skill marked as done." : "Skill marked as not done.");
     });
@@ -158,8 +242,9 @@
         var s2 = load(), st2 = skillState(s2, slug);
         st2.sections[h.id] = !st2.sections[h.id];
         if (!st2.sections[h.id]) delete st2.sections[h.id];
+        touch(s2, "sec|" + slug + "|" + h.id);
         var wasDone = st2.done;
-        if (checkedCount(st2) === heads.length && heads.length > 0) st2.done = true;
+        if (checkedCount(st2) === heads.length && heads.length > 0 && !st2.done) { st2.done = true; touch(s2, "done|" + slug); }
         save(s2); refresh();
         if (!wasDone && st2.done) toast("All sections read: skill complete! 🎉");
       });
@@ -199,11 +284,14 @@
         box.addEventListener("click", function () {
           var s = load();
           if (s.days[day]) delete s.days[day]; else s.days[day] = true;
+          touch(s, "day|" + day);
           save(s); paint(); refresh();
         });
         cell.textContent = ""; cell.appendChild(box); paint();
+        pageRefreshers.push(paint);
       });
       refresh();
+      pageRefreshers.push(refresh);
     });
   }
 
@@ -236,7 +324,14 @@
     var heroRing = document.getElementById("hb-hero-ring");
     if (heroRing) heroRing.innerHTML = ring(overall, 168, 14, "overall");
     var cont = document.getElementById("hb-continue");
-    if (cont) { if (s.last && BY_SLUG[s.last]) { cont.hidden = false; cont.href = s.last + "/"; cont.textContent = "Continue: " + BY_SLUG[s.last].title; } else { cont.hidden = true; } }
+    if (cont) {
+      if (s.last && BY_SLUG[s.last]) {
+        cont.hidden = false;
+        var lst = s.skills[s.last] || {}, next = (lst.order || []).filter(function (id) { return !(lst.sections || {})[id]; })[0];
+        cont.href = s.last + "/" + (next && !lst.done ? "#" + next : "");
+        cont.textContent = "Continue: " + BY_SLUG[s.last].title;
+      } else { cont.hidden = true; }
+    }
 
     var html = '<div class="hb-stats">' +
       stat(doneSkills + "/" + SKILLS.length, "skills done") +
@@ -263,7 +358,7 @@
     });
 
     html += '<div class="hb-tools">' +
-      '<div class="hb-tools__text"><strong>Your progress is saved in this browser.</strong> Export it to move to another device, or reset to start from the beginning.</div>' +
+      '<div class="hb-tools__text" data-hb="sync-text"><strong>Your progress is saved in this browser.</strong> Export it to move to another device, or reset to start from the beginning.</div>' +
       '<div class="hb-tools__actions">' +
       '<button type="button" class="hb-btn hb-btn--ghost" data-hb="export">Export progress</button>' +
       '<button type="button" class="hb-btn hb-btn--ghost" data-hb="import">Import progress</button>' +
@@ -275,6 +370,7 @@
       '<button type="button" class="hb-btn hb-btn--ghost" data-hb="reset-no">Cancel</button></div></div>';
 
     root.innerHTML = html;
+    try { window.dispatchEvent(new CustomEvent("hb:rendered")); } catch (e) { /* old browsers */ }
 
     root.querySelector('[data-hb="export"]').addEventListener("click", function () {
       var blob = new Blob([JSON.stringify(load(), null, 2)], { type: "application/json" });
@@ -293,7 +389,11 @@
         try {
           var data = JSON.parse(reader.result);
           if (!data || typeof data !== "object" || typeof data.skills !== "object") throw new Error("bad file");
-          save({ version: 1, skills: data.skills || {}, days: data.days || {}, last: data.last || null });
+          var before = load();
+          var imported = { version: 1, skills: data.skills || {}, days: data.days || {}, last: data.last || null, ts: {} };
+          itemKeys(before).concat(itemKeys(imported)).forEach(function (k) { touch(imported, k); });
+          Object.keys(imported.skills).forEach(function (slug) { skillState(imported, slug); });
+          save(imported);
           renderDashboard(); decorateNav(); toast("Progress imported.");
         } catch (e) { toast("That file isn't a valid progress export."); }
       };
@@ -304,14 +404,31 @@
     root.querySelector('[data-hb="reset"]').addEventListener("click", function () { confirmBox.hidden = false; });
     root.querySelector('[data-hb="reset-no"]').addEventListener("click", function () { confirmBox.hidden = true; });
     root.querySelector('[data-hb="reset-yes"]').addEventListener("click", function () {
-      try { window.localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+      // keep a timestamp for every cleared item, so the reset also reaches your other devices
+      var old = load(), fresh = emptyState();
+      itemKeys(old).forEach(function (k) { touch(fresh, k); });
+      fresh.last = null;
+      save(fresh);
       renderDashboard(); decorateNav(); toast("All progress cleared. Fresh start!");
     });
   }
   function stat(value, label) { return '<div class="hb-stat"><div class="hb-stat__value">' + esc(value) + '</div><div class="hb-stat__label">' + esc(label) + "</div></div>"; }
 
   /* ---------------- boot (works with Material's instant navigation) ---------------- */
+  var pageRefreshers = [];
+  // redraw everything from storage (used after progress arrives from another device)
+  function rerender() {
+    pageRefreshers.forEach(function (f) { try { f(); } catch (e) { /* page changed */ } });
+    renderDashboard();
+    decorateNav();
+  }
+  window.HBProgress = {
+    key: KEY, load: load, writeLocal: writeLocal, merge: merge, same: sameProgress,
+    empty: emptyState, rerender: rerender, toast: toast
+  };
+
   function init() {
+    pageRefreshers = [];
     var slug = currentSlug();
     if (BY_SLUG[slug]) enhanceSkillPage(slug);
     if (slug === "plan") enhancePlanPage();
