@@ -41,6 +41,43 @@ log files ──► parse ──► filter(errors) ──► map(toRecord) ─�
                                                          └──────────────────────────────────────┘
 ```
 
+**Try it yourself in the terminal** (needs a JDK: `sudo apt install openjdk-21-jdk` on Ubuntu, `brew install openjdk` on a Mac):
+
+```bash
+# 0. Write a tiny program
+cat > Hello.java <<'EOF'
+public class Hello {
+    public static void main(String[] args) {
+        int sum = 0;
+        for (int i = 0; i < 5; i++) sum += i;
+        System.out.println("Hello, JVM! sum = " + sum);
+    }
+}
+EOF
+
+# 1. COMPILE: Hello.java → Hello.class (bytecode: the same file runs on every OS)
+javac Hello.java
+ls -l Hello.class
+xxd Hello.class | head -1        # starts with "cafe babe", the magic number of every .class file
+
+# 2. LOOK at the bytecode (this is what the JVM executes)
+javap -c Hello                   # iconst_0, istore_1, iadd, getstatic System.out, invokevirtual println…
+
+# 3. RUN on the JVM (class loader → verifier → interpreter + JIT)
+java Hello                       # Hello, JVM! sum = 10
+java -verbose:class Hello | grep -i hello    # the class loader loading your class
+java -XX:+PrintCompilation Hello | head      # methods the JIT compiled to native code
+java -Xlog:gc Hello              # garbage-collector log (which GC, heap size)
+
+# 4. PACKAGE: .class files → a runnable .jar (what Maven/Gradle/sbt do for you)
+jar cfe hello.jar Hello Hello.class
+java -jar hello.jar
+```
+
+- `java Hello.java` (Java 11+) compiles in memory and runs a single file in one step.
+- **Scala** works the same way: `scalac Hello.scala` produces `.class` files, and you can inspect them with `javap` too. That's why Scala and Java code can call each other.
+- A tiny program finishes before the JIT has much to do, so `PrintCompilation` mostly lists JDK methods. A long-running loop shows your own methods being compiled.
+
 **Garbage collection in plain words:** a cleaning crew that walks through memory, finds objects nobody references any more, and frees them. Most objects die young, so the crew cleans the "nursery" (young generation) often and quickly, and the "archive" (old generation) rarely. While it cleans, the program may pause briefly ("stop-the-world"), which matters for latency.
 
 ### Spring Boot in plain words
@@ -360,6 +397,8 @@ class ParserSpec extends AnyFunSuite {
 ```
 .scala/.java → compiler → .class (bytecode) → JVM: class loader → bytecode verifier → interpreter + JIT compiler → native code
 ```
+
+**Commands:** `javac Hello.java` (→ Hello.class), `javap -c Hello` (see the bytecode), `java Hello` (run), `jar cfe app.jar Hello *.class` (package). Full walkthrough: [The JVM in plain words](#the-jvm-in-plain-words).
 
 - **Write once, run anywhere:** the bytecode is platform independent; the JVM is platform specific.
 - **JIT (just-in-time) compilation:** the HotSpot JVM profiles hot methods and compiles them to optimised native code at runtime. That's why JVM services "warm up" (slow first requests, fast later).

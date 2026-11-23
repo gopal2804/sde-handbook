@@ -28,6 +28,53 @@
  ./hello ──► LOADER (the OS maps the program into memory) ──► process with text, data, heap, stack
 ```
 
+**Try it yourself in the terminal.** Each command runs one stage, so you can open the file it produces before going to the next. Use Linux or WSL; Mac differences are listed after the block.
+
+```bash
+# 0. Write a tiny program
+cat > hello.c <<'EOF'
+#include <stdio.h>
+#define GREETING "Hello"
+
+int main(void) {
+    printf("%s, world!\n", GREETING);
+    return 0;
+}
+EOF
+
+# 1. PREPROCESSOR: hello.c → hello.i (headers pasted in, macros replaced)
+gcc -E hello.c -o hello.i
+wc -l hello.c hello.i            # 7 lines become hundreds: stdio.h was pasted in
+tail -5 hello.i                  # GREETING is gone: printf("%s, world!\n", "Hello");
+
+# 2. COMPILER: hello.i → hello.s (assembly, readable text)
+gcc -S hello.i -o hello.s
+cat hello.s                      # find "main:" and "call printf" (or puts)
+
+# 3. ASSEMBLER: hello.s → hello.o (machine code, not runnable yet)
+gcc -c hello.s -o hello.o
+file hello.o                     # "ELF 64-bit LSB relocatable"
+nm hello.o                       # T main = defined here · U printf = undefined, the linker must find it
+objdump -d hello.o | head -20    # the machine code, disassembled
+
+# 4. LINKER: hello.o + libc → ./hello (executable)
+gcc hello.o -o hello
+file hello                       # "ELF 64-bit LSB ... executable, dynamically linked"
+ldd ./hello                      # shared libraries it needs: libc.so.6, ld-linux…
+
+# 5. LOADER: the OS loads it into memory and runs it
+./hello                          # Hello, world!
+size hello                       # sizes of the text, data and bss sections
+```
+
+**Shortcuts and extras:**
+
+- `gcc -save-temps hello.c -o hello` runs all stages at once and **keeps** hello.i, hello.s and hello.o.
+- `gcc -v hello.c -o hello` prints every program gcc runs for you (cc1 = compiler, as = assembler, collect2/ld = linker).
+- **Static vs dynamic linking:** `gcc -static hello.c -o hello_static && ls -lh hello hello_static`. The static file is much bigger because libc is copied in, and `ldd ./hello_static` says "not a dynamic executable".
+- **Watch the loader:** `strace ./hello 2>&1 | head -20` shows `execve`, then libc being opened and mapped into memory (`openat`, `mmap`).
+- **On a Mac:** `gcc` is really Clang and files are Mach-O, not ELF. Use `otool -L hello` instead of `ldd`; you'll see `_main` / `_printf` (with an underscore) and `bl _printf` in the assembly. `-static` and `strace` aren't available.
+
 ### Pointers in plain words
 Memory is a long street of numbered houses (bytes). A **variable** is a house with something inside. A **pointer** is a slip of paper with a **house address** written on it.
 
@@ -310,6 +357,8 @@ union U { int i; float f; char b[4]; };// all members share memory; size = the l
 ```
 source.c → [preprocessor] → .i → [compiler] → .s (assembly) → [assembler] → .o (object) → [linker] → executable
 ```
+
+**Commands for each stage:** `gcc -E` (→ .i), `gcc -S` (→ .s), `gcc -c` (→ .o), `gcc file.o -o app` (link). Step-by-step walkthrough with what to look for: [How a C program becomes a running process](#how-a-c-program-becomes-a-running-process).
 
 - **Preprocessor:** `#include` (pastes the file), `#define` macros, `#ifdef` (conditional compilation). Include guards (`#ifndef X_H #define X_H … #endif`) or `#pragma once` prevent double inclusion.
 - **Macros vs inline functions:** a macro is text substitution with no type checking, and arguments can be evaluated twice: `#define SQ(x) x*x` gives `SQ(a+1)` = `a+1*a+1`. Always parenthesise, or prefer `inline`.

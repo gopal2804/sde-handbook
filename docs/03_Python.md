@@ -36,6 +36,36 @@
  └──────────────────────────────────────────────┘
 ```
 
+**Try it yourself in the terminal:**
+
+```bash
+# 0. Write a module and a script that imports it
+cat > calc.py <<'EOF'
+def add(a, b):
+    return a + b
+EOF
+cat > main.py <<'EOF'
+import calc
+print(calc.add(2, 3))
+EOF
+
+# 1. RUN: importing calc compiles it to bytecode and caches it
+python3 main.py                  # 5
+ls __pycache__                   # calc.cpython-312.pyc (the cached bytecode; main.py itself isn't cached)
+
+# 2. LOOK at the bytecode the virtual machine runs
+python3 -m dis calc.py                               # bytecode of the whole module
+python3 -c "import dis, calc; dis.dis(calc.add)"     # LOAD_FAST a, LOAD_FAST b, BINARY_OP (+), RETURN_VALUE
+
+# 3. COMPILE on purpose (pip does this when it installs packages)
+python3 -m py_compile calc.py    # one file → __pycache__/calc.cpython-3XX.pyc
+python3 -m compileall .          # every .py file in the folder
+```
+
+- Opcode names change slightly between versions (for example `BINARY_ADD` before 3.11, `BINARY_OP` from 3.11).
+- If no `__pycache__` folder appears after step 1, caching is switched off (`PYTHONDONTWRITEBYTECODE=1`, common in Docker images). `py_compile` still writes the file.
+- Delete `__pycache__` and run again: it's simply rebuilt. The `.pyc` only saves compile time on the next import; it doesn't make the code run faster.
+
 ### Variables are labels, not boxes
 ```
 a = [1, 2, 3]          b = a
