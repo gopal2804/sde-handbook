@@ -49,9 +49,15 @@ extra_javascript:
   - assets/progress.js
   - path: assets/cloud-sync.js   # sign in with Google + sync progress (needs assets/firebase-config.js)
     type: module
+  - path: assets/private-notes.js   # owner-only notes page (docs/private.md), content lives in Firestore
+    type: module
 
 hooks:
   - hooks.py
+
+# The private notes page isn't in the menu: the owner opens it from the account menu
+not_in_nav: |
+  /private.md
 
 # Personal notes stay on your computer: excluded from the build and never committed (see .gitignore)
 exclude_docs: |

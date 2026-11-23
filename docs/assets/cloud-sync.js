@@ -19,6 +19,18 @@ let unsubscribe = null;
 let pushTimer = null;
 let applyingRemote = false;
 let menuOpen = false;
+let isOwner = false;      // true when this account can read the private notes (decided by the Firestore rules)
+let ownerChecked = false;
+
+// shared with private-notes.js
+function publishAuth() {
+  window.HBAuth = { fb, user, isOwner, ownerChecked };
+  try { window.dispatchEvent(new CustomEvent("hb:auth")); } catch (e) { /* old browsers */ }
+}
+function siteRoot() {
+  const a = document.querySelector("a.md-header__button.md-logo");
+  return a ? a.getAttribute("href") : "./";
+}
 
 function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function toast(m) { if (P && P.toast) P.toast(m); }
@@ -93,6 +105,7 @@ function paint() {
         '<div class="hb-auth__who"><strong>' + esc(user.displayName || "Signed in") + "</strong>" +
         (user.email ? '<span>' + esc(user.email) + "</span>" : "") + "</div>" +
         '<div class="hb-auth__status hb-auth__status--' + status + '">' + esc(STATUS_TEXT[status]) + "</div>" +
+        (isOwner ? '<a class="hb-auth__link" href="' + esc(siteRoot()) + 'private/">🔒 My private notes</a>' : "") +
         '<div class="hb-auth__actions">' +
         (status === "error" || status === "offline" ? '<button type="button" class="hb-btn hb-btn--ghost hb-btn--small" data-hb-auth="sync">Try again</button>' : "") +
         '<button type="button" class="hb-btn hb-btn--ghost hb-btn--small" data-hb-auth="signout">Sign out</button></div>';
@@ -194,10 +207,22 @@ async function pushNow() {
   }
 }
 
+async function checkOwner() {
+  const me = user;
+  try {
+    await fb.fsMod.getDocs(fb.fsMod.query(fb.fsMod.collection(fb.db, "private_notes"), fb.fsMod.limit(1)));
+    if (me === user) isOwner = true;
+  } catch (e) { if (me === user) isOwner = false; }
+  if (me === user) { ownerChecked = true; paint(); publishAuth(); }
+}
+
 function onUser(u) {
   stopListening();
   user = u || null;
+  isOwner = false; ownerChecked = false;
+  publishAuth();
   if (!user) { setStatus("idle"); return; }
+  checkOwner();
   setStatus("syncing");
   unsubscribe = fb.fsMod.onSnapshot(
     docRef(),
@@ -212,6 +237,7 @@ async function boot() {
   if (!P || !firebaseConfig || !firebaseConfig.apiKey) return;   // sign-in not configured: browser-only progress
   try { fb = await loadFirebase(); } catch (e) { return; }      // SDK blocked or offline: stay browser-only
   paint();
+  publishAuth();
   // handle the result of a redirect sign-in (used only when popups are blocked)
   fb.authMod.getRedirectResult(fb.auth).catch(() => {});
   fb.authMod.onAuthStateChanged(fb.auth, onUser);

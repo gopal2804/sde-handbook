@@ -60,16 +60,18 @@ Without signing in, progress is saved only in that browser (`localStorage` key `
 1. **Create a Firebase project:** at console.firebase.google.com (Google Analytics off).
 2. **Turn on Google sign-in:** Authentication → Sign-in method → **Google** → enable.
 3. **Allow the website:** Authentication → Settings → Authorized domains → add `gopal2804.github.io` (`localhost` is allowed by default).
-4. **Create the database:** Firestore Database → create in **production mode** (location `asia-south1`). Then paste `firestore.rules` into the **Rules** tab and **Publish**.
+4. **Create the database:** Firestore Database → create in **production mode** (location `asia-south1`). Then paste `firestore.rules` into the **Rules** tab and **Publish**. Replace `OWNER_UID` with your account ID first (the Private notes page shows it once you sign in).
 5. **Register a web app:** Project settings → Your apps → **Web** → register. Copy `apiKey`, `authDomain`, `projectId` and `appId` into `docs/assets/firebase-config.js`.
 
-## Private notes
+## Private notes (owner only)
 
-Three personal pages (`docs/25_*`, `26_*`, `27_*`) stay on the author's computer:
+Personal notes never go into this repository or the published site. They live in Firestore and appear only for the site owner, after signing in.
 
-- **Never pushed:** they're listed in `.gitignore`.
-- **Never published:** they're excluded from the build in `mkdocs.yml` (`exclude_docs`).
-- **No broken links:** `hooks.py` turns any link to them in public pages into plain text.
+- **Where:** the **Private notes** page (`/private/`, from `docs/private.md`). It isn't in the menu or the site search; the owner opens it from the account menu (**🔒 My private notes**).
+- **Who can see them:** only the account whose ID is set as `OWNER_UID` in `firestore.rules`. The site's code never contains the notes or the owner's identity. For anyone else the database refuses to send them, and the page just says it's private.
+- **What the owner can do:** upload `.md` files (several at once; same file name = replace), read them rendered from Markdown with a contents list, **Edit** in the browser, **Download** one or all as `.md` (backups), and **Delete**. Rendering uses `marked`, and the HTML is cleaned with `DOMPurify` before display.
+- **Links:** links between notes (`25_My_Dell_Experience.md`) and to public pages (`01_DSA.md`) work inside a note. In public pages, `hooks.py` turns links to the personal notes into links to the Private notes page.
+- **Local files:** the original personal files (`docs/25_*`, `26_*`, `27_*`) are still listed in `.gitignore` and `exclude_docs`, so a local copy can never be pushed or published by accident.
 
 ## Design
 
@@ -102,8 +104,10 @@ docs/                      all pages (Markdown)
   assets/progress.js       progress tracker, dashboard, export/import, merge logic
   assets/cloud-sync.js     Google sign-in + Firestore sync (ES module)
   assets/firebase-config.js  public Firebase web settings
+  assets/private-notes.js  owner-only Private notes page (Firestore + Markdown rendering)
+  private.md               the Private notes page shell (no content)
 mkdocs.yml                 site settings, navigation, scripts, excluded pages
-hooks.py                   build hook: unlinks private pages
+hooks.py                   build hook: points links to personal notes at the Private notes page
 firestore.rules            Firestore security rules (paste into the Firebase console)
 requirements.txt           MkDocs, Material, list extension
 .github/workflows/deploy.yml  builds and publishes to GitHub Pages on every push to main

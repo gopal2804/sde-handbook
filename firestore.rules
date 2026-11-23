@@ -3,6 +3,15 @@ rules_version = '2';
 // Each signed-in person can read and write only their own progress; nobody can list or read anyone else's.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Private notes: only the site owner. Replace OWNER_UID with your account ID
+    // (shown on the Private notes page when you're signed in, or Firebase console → Authentication → Users).
+    match /private_notes/{note} {
+      allow read, delete: if request.auth != null && request.auth.uid == "OWNER_UID";
+      allow create, update: if request.auth != null && request.auth.uid == "OWNER_UID"
+        && request.resource.data.keys().hasOnly(['title', 'md', 'updatedAt'])
+        && request.resource.data.md is string
+        && request.resource.data.md.size() < 1000000;
+    }
     match /users/{uid}/sites/{site} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null
